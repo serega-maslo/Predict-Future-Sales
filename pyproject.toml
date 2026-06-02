@@ -1,16 +1,19 @@
 [project]
-name = "eda-project"
+name = "predict-future-sales"
 version = "0.1.0"
-description = "Add your description here"
+description = "Project for Predict Future Sales dataset on Kagle www.kaggle.com/competitions/competitive-data-science-predict-future-sales"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "fg-data-profiling>=4.19.1",
     "ipykernel>=7.2.0",
-    "matplotlib>=3.10.9",
-    "numpy>=2.4.5",
-    "pandas>=3.0.3",
+    "ipywidgets>=8.1.8",
+    "matplotlib>=3.5,<=3.10",
+    "numpy>=1.22,<2.4",
+    "pandas>=1.4.0,<3.0.0",
     "python-dotenv>=1.2.2",
     "ruff>=0.15.13",
     "scikit-learn>=1.8.0",
     "seaborn>=0.13.2",
+    "setuptools>=60.0.0,<70.0.0",
 ]
