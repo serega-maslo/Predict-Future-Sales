@@ -7,10 +7,13 @@ requires-python = ">=3.13"
 dependencies = [
     "fg-data-profiling>=4.19.1",
     "ipykernel>=7.2.0",
+    "ipympl>=0.10.0",
     "ipywidgets>=8.1.8",
     "matplotlib>=3.5,<=3.10",
+    "nbformat>=5.10.4",
     "numpy>=1.22,<2.4",
     "pandas>=1.4.0,<3.0.0",
+    "plotly>=6.8.0",
     "python-dotenv>=1.2.2",
     "rapidfuzz>=3.14.5",
     "ruff>=0.15.13",
