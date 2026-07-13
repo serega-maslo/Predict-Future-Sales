@@ -1,29 +1,28 @@
-from pathlib import Path
-import pandas as pd
-import numpy as np
-import pandas as pd
-import numpy as np
 import math
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from pathlib import Path
-import os
-import sys
 import re
-import seaborn as sns
+import sys
+from pathlib import Path
 
+import numpy as np
+import pandas as pd
 
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
 project_root = Path(__file__).resolve().parents[2]
 if str(project_root) not in sys.path:
     sys.path.append(str(project_root))
+
 raw_data_path = project_root / "data" / "raw"
 cache_path = project_root / "data" / "processed"
 cache_path.mkdir(parents=True, exist_ok=True)
-cache_path.mkdir(parents=True, exist_ok=True)
-from src.data.constants import *
+
+'''from src.data.constants import (
+    CLUSTERS_OF_ITEMS,
+    INFLATION_DATA,
+    NUMBER_OF_DAYS_IN_MONTH,
+    NUMBER_OF_DAYS_OF_MONTH,
+    NUMBER_OF_DAYS_OF_WEEK,
+    POPULATION_DATA,
+)'''
+
 
 
 def _cache_file(name: str) -> Path:
@@ -40,6 +39,69 @@ def _load_or_compute(cache_name, recompute, compute_fn):
     return df
 
 
+def _get_main_category(item_category_name):
+    return item_category_name.split('-', 1)[0].strip()
+
+def _clean_item_name(text):
+        text = re.sub(r'^[\!\*\/\s]+', '', text)
+        text = re.sub(r'[\!\*\/\s]$', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'\s+D$', ' Disc', text, flags=re.IGNORECASE)
+        return text.strip()
+
+
+def _compute_item_cats(raw_data_path: Path) -> pd.DataFrame:
+    item_cats = pd.read_csv(raw_data_path / "item_categories.csv")
+    item_cats["main_category"] = item_cats["item_category_name"].map(_get_main_category)
+    return item_cats
+
+
+
+def _compute_items(raw_data_path: Path) -> pd.DataFrame:
+    items = pd.read_csv(raw_data_path / "items.csv")
+    items['item_name'] = items['item_name'].apply(_clean_item_name)
+    items['simple_name'] = (
+        items['item_name']
+        .astype(str)
+        .str.replace(r'[^a-zA-Zа-яА-ЯёЁ0-9]', '', regex=True)
+        .str.lower()
+    )
+    corrected = items.drop_duplicates('simple_name').set_index('simple_name')[['item_name', 'item_id']]
+    items['corrected_item_id'] = items['simple_name'].map(corrected['item_id'])
+    items.drop(columns='simple_name', inplace=True)
+    return items
+
+
+
+def load_item_cats(
+    raw_data_path=raw_data_path,
+    recompute=True,
+):
+    return _load_or_compute(
+        cache_name="item_cats_processed",
+        recompute=recompute,
+        compute_fn=lambda: _compute_item_cats(raw_data_path),
+    ) 
+
+
+def load_items(
+    raw_data_path=raw_data_path,
+    recompute=True,
+):
+    return _load_or_compute(
+        cache_name="shops_processed",
+        recompute=recompute,
+        compute_fn=lambda: _compute_items(raw_data_path),
+    ) 
+
+if __name__ == "__main__":
+    data = load_items(recompute=True)
+    print(data.head())
+
+
+
+
+
+'''
 def load_train(
     raw_data_path=raw_data_path,
     recompute=True,
@@ -71,7 +133,7 @@ def load_train(
         train["week_day_cos"] = np.cos(2 * np.pi * train["week_day"] / 7)
 
 
-        train['inflation_factor'] = train.set_index(['year', 'month']).index.map(inflation_data)
+        train['inflation_factor'] = train.set_index(['year', 'month']).index.map(INFLATION_DATA)
         train['no_inflation_price'] = train['item_price'] / train['inflation_factor']
 
 
@@ -128,7 +190,7 @@ def load_train(
         item_cats[['item_category_name', 'main_category', 'subcategory']].head(15)
         item_cats["cluster"] = (
         item_cats["item_category_name"]
-        .map(clusters_of_items)
+        .map(CLUSTERS_OF_ITEMS)
         .fillna(9)
         .astype(int)
 )
@@ -158,7 +220,7 @@ def load_train(
         df_final = pd.merge(train_merged, shops, on="shop_id", how="left")
 
         df_final.loc[484683, "item_price"] = 1249.0
-        df_final.loc[484683, "no_inflation_price"] = 1249.0 / inflation_data[2013, 5]
+        df_final.loc[484683, "no_inflation_price"] = 1249.0 / INFLATION_DATA[2013, 5]
 
         df_final.loc[df_final['item_name'] == 'Radmin 3  - 522 лиц.', ['item_name', 'item_price', 'item_cnt_day', 'no_inflation_price']] = ["Radmin 3", 307980.0 / 522, 522, 289183.0985915493 / 522]
 
@@ -282,3 +344,5 @@ def load_for_submission(
         compute_fn=compute,
     )
 
+
+'''
