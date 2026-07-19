@@ -31,4 +31,7 @@ def _get_item_is_shops_speciality(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def add_features(df: pd.DataFrame) -> pd.DataFrame:
+    df = _get_date_features(df)
+    df = _get_shops_speciality(df)
+    df = _get_item_is_shops_speciality(df)
     return df
