@@ -12,10 +12,6 @@ from matplotlib.widgets import Button
 from statsmodels.graphics.tsaplots import plot_acf
 from statsmodels.tsa.seasonal import STL
 
-project_root = os.path.abspath(os.path.join(os.getcwd(), ".."))
-if project_root not in sys.path:
-    sys.path.append(project_root)
-
 from src.data.constants import POPULATION_DATA, NUMBER_OF_DAYS_OF_WEEK, NUMBER_OF_DAYS_IN_MONTH, NUMBER_OF_DAYS_OF_MONTH
 
 

@@ -1084,7 +1084,7 @@ wheels = [
 [[package]]
 name = "predict-future-sales"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "fg-data-profiling" },
     { name = "ipykernel" },
