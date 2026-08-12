@@ -74,7 +74,9 @@ class SeasonalModel:
             self.df,
             on=["corrected_shop_id", "corrected_item_id"],
             how='left',
-        )    
+        )
+        X['item_cnt_day'] = (X['item_cnt_day'].fillna(0))
+
         season_last = self.month % self.seasonality
         season_next = (self.month + 1) % self.seasonality
 
@@ -92,9 +94,8 @@ class SeasonalModel:
             how='left'
         ).rename(columns={'seasonal_component': 'season_next'})
 
-        X['item_cnt_day'] = (X['item_cnt_day'].fillna(0))
         X['season_last'] = X['season_last'].fillna(0)
-        X['season_next'] = X['season_next'].fillna(0)
+        X['season_next'] = X['season_next'].fillna(X['season_last'])
 
         return (X['item_cnt_day'] - X['season_last'] + X['season_next']).clip(lower=0)
 
@@ -239,26 +240,6 @@ class SeasonalTrendModel:
         season_next = (self.month + 1) % self.seasonality
 
         X = X.merge(
-            self.seasonality_df[
-                self.seasonality_df['season'] == season_last
-            ][
-                ['corrected_shop_id', 'corrected_item_id', 'seasonal_component']
-            ],
-            on=['corrected_shop_id', 'corrected_item_id'],
-            how='left'
-        ).rename(columns={'seasonal_component': 'season_last'})
-
-        X = X.merge(
-            self.seasonality_df[
-                self.seasonality_df['season'] == season_next
-            ][
-                ['corrected_shop_id', 'corrected_item_id', 'seasonal_component']
-            ],
-            on=['corrected_shop_id', 'corrected_item_id'],
-            how='left'
-        ).rename(columns={'seasonal_component': 'season_next'})
-
-        X = X.merge(
             self.trend_df[
                 self.trend_df['date_block_num'] == self.month
             ][
@@ -278,16 +259,34 @@ class SeasonalTrendModel:
             how='left'
         ).rename(columns={'trend_component': 'trend_prev'})
 
+        X = X.merge(
+            self.seasonality_df[
+                self.seasonality_df['season'] == season_last
+            ][
+                ['corrected_shop_id', 'corrected_item_id', 'seasonal_component']
+            ],
+            on=['corrected_shop_id', 'corrected_item_id'],
+            how='left'
+        ).rename(columns={'seasonal_component': 'season_last'})
+
+        X = X.merge(
+            self.seasonality_df[
+                self.seasonality_df['season'] == season_next
+            ][
+                ['corrected_shop_id', 'corrected_item_id', 'seasonal_component']
+            ],
+            on=['corrected_shop_id', 'corrected_item_id'],
+            how='left'
+        ).rename(columns={'seasonal_component': 'season_next'})
+
+
+
         X['item_cnt_day'] = X['item_cnt_day'].fillna(0)
         X['season_last'] = X['season_last'].fillna(0)
-        X['season_next'] = X['season_next'].fillna(0)
+        X['season_next'] = X['season_next'].fillna(X['season_last'])
         X['trend_last'] = X['trend_last'].fillna(0)
         X['trend_prev'] = X['trend_prev'].fillna(X['trend_last'])
-
-        X['trend_next'] = (
-            X['trend_last'] +
-            (X['trend_last'] - X['trend_prev'])
-        )
+        X['trend_next'] = X['trend_last'] + (X['trend_last'] - X['trend_prev'])
 
         return (
             X['item_cnt_day']
