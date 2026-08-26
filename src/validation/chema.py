@@ -1,5 +1,6 @@
 from typing import Protocol
 from pathlib import Path
+import inspect
 
 import pandas as pd
 import numpy as np
@@ -65,5 +66,20 @@ def log_validation(df: pd.DataFrame, model_class, save_path: Path, model_name: s
         predictions_path = save_path / f"validation_predictions_{model_name}.parquet"
         results.to_parquet(predictions_path, index=False)
         mlflow.log_artifact(predictions_path)
+
+        validation_shema_path = save_path / "validation_chema.py"
+        validation_shema_path.write_text(
+            inspect.getsource(validation_chema),
+            encoding="utf-8"
+        )
+        mlflow.log_artifact(validation_shema_path)
+
+
+        model_code_path = save_path / f"{model_name}.py"
+        model_code_path.write_text(
+            inspect.getsource(model_class),
+            encoding="utf-8"
+        )
+        mlflow.log_artifact(model_code_path)
 
         return results
