@@ -1,5 +1,3 @@
-import os
-import sys
 
 import ipywidgets as widgets
 import matplotlib.dates as mdates
@@ -1110,8 +1108,6 @@ def plot_correlation_matrix(df, numeric_cols, n_rows=8):
     plt.show()
 
 
-import matplotlib.pyplot as plt
-import pandas as pd
 
 
 def plot_time_dataframe(df: pd.DataFrame, title: str = "Value Dynamics"):

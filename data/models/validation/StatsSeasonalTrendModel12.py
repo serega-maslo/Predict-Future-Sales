@@ -68,6 +68,7 @@ class StatsSeasonalTrendModel:
             on=["corrected_shop_id", "corrected_item_id"],
             how='left'
         )
+        X['item_cnt_day'] = (X['item_cnt_day'].fillna(0))
 
         season_last = self.month % self.seasonality
         season_next = (self.month + 1) % self.seasonality

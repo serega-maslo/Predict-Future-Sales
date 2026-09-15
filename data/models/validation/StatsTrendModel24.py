@@ -42,6 +42,7 @@ class StatsTrendModel:
             on=["corrected_shop_id", "corrected_item_id"],
             how='left',
         )
+        X['item_cnt_day'] = (X['item_cnt_day'].fillna(0))
 
         trend_last = self.month
         trend_prev = self.month - 1
