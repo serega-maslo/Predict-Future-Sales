@@ -1,18 +1,23 @@
 import pandas as pd
 from statsmodels.tsa.seasonal import seasonal_decompose
 
+
 class BaseLineModel:
     def __init__(self):
         self.df = None
         self.month = None
 
-    def fit(self, df):
+    def fit(self, df, y):
         self.month = df['date_block_num'].max()
         columns_to_group = ['date_block_num', 'corrected_shop_id', 'corrected_item_id']
+
+        temp_df = df.copy()
+        temp_df['_item_cnt_day'] = y.values
+
         self.df = (
-            df[df['date_block_num'] == self.month]
+            temp_df[temp_df['date_block_num'] == self.month]
             .groupby(columns_to_group, as_index=False)
-            .agg(item_cnt_day=("item_cnt_day", "sum"))
+            .agg(item_cnt_day=("_item_cnt_day", "sum"))
         )
 
     def predict(self, df):
@@ -22,16 +27,16 @@ class BaseLineModel:
             on=["corrected_shop_id", "corrected_item_id"],
             how='left',
         )
-        X['item_cnt_day'] = (X['item_cnt_day'].fillna(0))
-        return X['item_cnt_day']
 
+        X['item_cnt_day'] = (X['item_cnt_day'].fillna(0))
+        return X["item_cnt_day"].to_numpy()
 
 
 class ZerosModel:
     def __init__(self):
         pass
 
-    def fit(self, df):
+    def fit(self, df, y):
         return self
 
     def predict(self, df):
@@ -42,13 +47,12 @@ class OnesModel:
     def __init__(self):
         pass
 
-    def fit(self, df):
+    def fit(self, df, y):
         return self
 
     def predict(self, df):
         return [1] * len(df)
 
-    
 
 class SeasonalModel:
     def __init__(self, seasonality=12):
@@ -56,19 +60,25 @@ class SeasonalModel:
         self.month = None
         self.seasonality = seasonality
 
-    def fit(self, df):
+    def fit(self, df, y):
         self.month = df['date_block_num'].max()
         columns_to_group = ['date_block_num', 'corrected_shop_id', 'corrected_item_id']
+
+        temp_df = df.copy()
+        temp_df['_item_cnt_day'] = y.values
+
         df = (
-            df.groupby(columns_to_group, as_index=False)
-            .agg(item_cnt_day=("item_cnt_day", "sum"))
+            temp_df.groupby(columns_to_group, as_index=False)
+            .agg(item_cnt_day=("_item_cnt_day", "sum"))
         ).sort_values(columns_to_group)
+
         df['trend'] = (
             df.groupby(['corrected_shop_id', 'corrected_item_id'])['item_cnt_day']
             .rolling(self.seasonality, center=True, min_periods=1)
             .mean()
             .values
         )
+
         df['risidual'] = (
             df['item_cnt_day'] - df['trend']
         )
@@ -99,6 +109,7 @@ class SeasonalModel:
             on=["corrected_shop_id", "corrected_item_id"],
             how='left',
         )
+
         X['item_cnt_day'] = (X['item_cnt_day'].fillna(0))
 
         season_last = self.month % self.seasonality
@@ -121,8 +132,7 @@ class SeasonalModel:
         X['season_last'] = X['season_last'].fillna(0)
         X['season_next'] = X['season_next'].fillna(X['season_last'])
 
-        return (X['item_cnt_day'] - X['season_last'] + X['season_next']).clip(lower=0)
-
+        return (X['item_cnt_day'] - X['season_last'] + X['season_next']).clip(lower=0).to_numpy()
 
 
 class StatsSeasonalModel:
@@ -131,18 +141,27 @@ class StatsSeasonalModel:
         self.month = None
         self.seasonality = seasonality
 
-    def fit(self, df):
+    def fit(self, df, y):
         self.month = df['date_block_num'].max()
         columns_to_group = ['date_block_num', 'corrected_shop_id', 'corrected_item_id']
+
+        temp_df = df.copy()
+        temp_df['_item_cnt_day'] = y.values
+
         df = (
-            df.groupby(columns_to_group, as_index=False)
-            .agg(item_cnt_day=("item_cnt_day", "sum"))
+            temp_df.groupby(columns_to_group, as_index=False)
+            .agg(item_cnt_day=("_item_cnt_day", "sum"))
         ).sort_values(columns_to_group)
 
         df['seasonal_component'] = (
             df.groupby(['corrected_shop_id', 'corrected_item_id'])['item_cnt_day']
             .transform(
-                lambda x: seasonal_decompose(x, model='additive', period=self.seasonality, extrapolate_trend='freq').seasonal 
+                lambda x: seasonal_decompose(
+                    x,
+                    model='additive',
+                    period=self.seasonality,
+                    extrapolate_trend='freq'
+                ).seasonal
                 if len(x) >= 2 * self.seasonality else pd.Series(0, index=x.index)
             )
         )
@@ -173,6 +192,7 @@ class StatsSeasonalModel:
             on=["corrected_shop_id", "corrected_item_id"],
             how='left',
         )
+
         X['item_cnt_day'] = (X['item_cnt_day'].fillna(0))
 
         season_last = self.month % self.seasonality
@@ -195,8 +215,7 @@ class StatsSeasonalModel:
         X['season_last'] = X['season_last'].fillna(0)
         X['season_next'] = X['season_next'].fillna(X['season_last'])
 
-        return (X['item_cnt_day'] - X['season_last'] + X['season_next']).clip(lower=0)
-
+        return (X['item_cnt_day'] - X['season_last'] + X['season_next']).clip(lower=0).to_numpy()
 
 
 class CategorySeasonalModel:
@@ -205,7 +224,7 @@ class CategorySeasonalModel:
         self.month = None
         self.seasonality = seasonality
 
-    def fit(self, df):
+    def fit(self, df, y):
         self.month = df['date_block_num'].max()
         columns_to_group = [
             'date_block_num',
@@ -213,16 +232,25 @@ class CategorySeasonalModel:
             'corrected_item_id',
             'main_category'
         ]
+
+        temp_df = df.copy()
+        temp_df['_item_cnt_day'] = y.values
+
         df = (
-            df.groupby(columns_to_group, as_index=False)
-            .agg(item_cnt_day=("item_cnt_day", "sum"))
+            temp_df.groupby(columns_to_group, as_index=False)
+            .agg(item_cnt_day=("_item_cnt_day", "sum"))
             .sort_values(columns_to_group)
         )
 
         df['seasonal_component'] = (
             df.groupby(['main_category'])['item_cnt_day']
             .transform(
-                lambda x: seasonal_decompose(x, model='additive', period=self.seasonality, extrapolate_trend='freq').seasonal 
+                lambda x: seasonal_decompose(
+                    x,
+                    model='additive',
+                    period=self.seasonality,
+                    extrapolate_trend='freq'
+                ).seasonal
                 if len(x) >= 2 * self.seasonality else pd.Series(0, index=x.index)
             )
         )
@@ -253,6 +281,7 @@ class CategorySeasonalModel:
             on=["corrected_shop_id", "corrected_item_id"],
             how='left',
         )
+
         X['item_cnt_day'] = (X['item_cnt_day'].fillna(0))
 
         season_last = self.month % self.seasonality
@@ -275,7 +304,7 @@ class CategorySeasonalModel:
         X['season_last'] = X['season_last'].fillna(0)
         X['season_next'] = X['season_next'].fillna(X['season_last'])
 
-        return (X['item_cnt_day'] - X['season_last'] + X['season_next']).clip(lower=0)
+        return (X['item_cnt_day'] - X['season_last'] + X['season_next']).clip(lower=0).to_numpy()
 
 
 class ShopCatTrendModel:
@@ -285,7 +314,7 @@ class ShopCatTrendModel:
         self.seasonality = seasonality
         self.trend_df = None
 
-    def fit(self, df):
+    def fit(self, df, y):
         self.month = df['date_block_num'].max()
         columns_to_group = [
             'date_block_num',
@@ -293,9 +322,13 @@ class ShopCatTrendModel:
             'corrected_item_id',
             'main_category'
         ]
+
+        temp_df = df.copy()
+        temp_df['_item_cnt_day'] = y.values
+
         df = (
-            df.groupby(columns_to_group, as_index=False)
-            .agg(item_cnt_day=("item_cnt_day", "sum"))
+            temp_df.groupby(columns_to_group, as_index=False)
+            .agg(item_cnt_day=("_item_cnt_day", "sum"))
             .sort_values(columns_to_group)
         )
 
@@ -333,6 +366,7 @@ class ShopCatTrendModel:
             on=["corrected_shop_id", "corrected_item_id"],
             how='left',
         )
+
         X['item_cnt_day'] = (X['item_cnt_day'].fillna(0))
 
         X = X.merge(
@@ -368,4 +402,4 @@ class ShopCatTrendModel:
             X['item_cnt_day'] -
             X['trend_last'] +
             X['trend_next']
-        ).clip(lower=0)
+        ).clip(lower=0).to_numpy()
