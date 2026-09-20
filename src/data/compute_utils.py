@@ -1,7 +1,5 @@
 import re
 
-import numpy as np
-import pandas as pd
 
 def _get_main_category(item_category_name):
     return item_category_name.split('-', 1)[0].strip()

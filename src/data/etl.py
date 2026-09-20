@@ -1,10 +1,7 @@
-import re
-import sys
 from pathlib import Path
 
 import pandas as pd
 
-from src.data.constants import INFLATION_DATA
 from src.data.items import _compute_items
 from src.data.item_cats import _compute_item_cats
 from src.data.shops import _compute_shops

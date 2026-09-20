@@ -1,5 +1,3 @@
-import os
-import sys
 
 import ipywidgets as widgets
 import matplotlib.dates as mdates
@@ -1106,5 +1104,36 @@ def plot_correlation_matrix(df, numeric_cols, n_rows=8):
     )
 
     plt.title(f"Correlation matrix (first {n_rows} rows)")
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+def plot_time_dataframe(df: pd.DataFrame, title: str = "Value Dynamics"):
+    df = df.copy()
+
+    if not pd.api.types.is_datetime64_any_dtype(df.index):
+        df.index = pd.to_datetime(df.index)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    for column in df.columns:
+        ax.plot(
+            df.index,
+            df[column],
+            marker="o",
+            linestyle="-",
+            label=str(column),
+        )
+
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Value")
+    ax.set_title(title)
+    ax.legend(title="Columns")
+    ax.grid(True, linestyle="--", alpha=0.6)
+
+    fig.autofmt_xdate()
+
     plt.tight_layout()
     plt.show()
