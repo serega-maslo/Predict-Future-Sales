@@ -1,0 +1,48 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+
+    working_dir: /workspace
+
+    volumes:
+      - .:/workspace
+
+    environment:
+      PYTHONPATH: /workspace
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+
+    depends_on:
+      - mlflow
+
+    command: sleep infinity
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+
+    working_dir: /workspace
+
+    ports:
+      - "127.0.0.1:5000:5000"
+
+    volumes:
+      - mlflow_data:/mlflow
+
+    environment:
+      MLFLOW_SERVER_ALLOWED_HOSTS: "mlflow:5000,mlflow,localhost:5000,localhost,127.0.0.1:5000,127.0.0.1"
+
+    command:
+      - uv
+      - run
+      - mlflow
+      - server
+      - --host=0.0.0.0
+      - --port=5000
+      - --backend-store-uri=sqlite:////mlflow/mlflow.db
+      - --artifacts-destination=/mlflow/artifacts
+
+volumes:
+  mlflow_data:
