@@ -14,10 +14,9 @@ class ModelProtocol(Protocol):
     def predict(self, X: pd.DataFrame) -> np.ndarray: ...
 
 
-def validation_chema(df: pd.DataFrame, y: pd.DataFrame, model_class: ModelProtocol, features: list[str], model_params: dict, start: int = 0, window_size: int = -1, importance: bool = False)->pd.DataFrame:
-    
-    #results = df[['date_block_num', 'date', 'corrected_shop_id', 'corrected_item_id', 'item_cnt_day']].iloc[0:0].copy()
-    #results['true_ans'] = None
+def validation_chema(df: pd.DataFrame, y: pd.DataFrame, model_class: ModelProtocol, features: list[str], model_params: dict, start: int = 0, window_size: int = -1, importance: bool = False, encode: bool = False)->pd.DataFrame:
+    df['item_cnt_day'] = y
+    df['date'] = pd.to_datetime(df['date'])
     results = []
     feature_importances_list = []
     max_month = df['date_block_num'].max()
@@ -29,19 +28,51 @@ def validation_chema(df: pd.DataFrame, y: pd.DataFrame, model_class: ModelProtoc
     for month in range(start, max_month):
         if window_size == -1:
             train_idx = df["date_block_num"] <= month
+            val_month = month + 1
         else:
             train_idx = (df['date_block_num'] >= month) & (df['date_block_num'] < month + window_size)
-        train = df.loc[train_idx, features]
+            val_month = month + window_size
+        train = df.loc[train_idx, features + ['item_cnt_day']].copy()
+        valid = df[df['date_block_num'] == val_month].copy()
+        valid['item_cnt_day'] = 0
+
+
+
+        if encode:
+
+            train_indices = train.index.copy()
             
-        
-        #valid = df[df["date_block_num"] == month + 1][['date', 'corrected_shop_id', 'corrected_item_id', 'main_category',  'item_cnt_day']]
-        #valid = df[df["date_block_num"] == month + 1][valid_features]
-        if window_size != -1:
-            valid = df[df["date_block_num"] == month + window_size][valid_features]
-        else:
-            valid = df[df["date_block_num"] == month + 1][valid_features]
-        #valid['date_block_num'] = month + 1
-        valid['date'] = pd.to_datetime(valid['date'])
+            train = pd.concat((train, valid[train.columns]), ignore_index=True)
+
+            category_sales = train.groupby(["main_category"], as_index=False).agg(item_cnt_day=("item_cnt_day", "sum")).sort_values(by=["item_cnt_day"], ascending=False).reset_index(drop=True)
+            category_map = pd.Series(category_sales.index.values, index=category_sales["main_category"])
+            train["main_category"] = train["main_category"].map(category_map)
+            valid["main_category"] = valid["main_category"].map(category_map)
+
+
+            city_sales = train.groupby(["city"], as_index=False).agg(item_cnt_day=("item_cnt_day", "sum")).sort_values(by=["item_cnt_day"], ascending=False).reset_index(drop=True)
+            city_map = pd.Series(city_sales.index.values, index=city_sales["city"])
+            train["city"] = train["city"].map(city_map)
+            valid["city"] = valid["city"].map(city_map)
+
+
+            
+            item_sales = train.groupby(["corrected_item_id"], as_index=False).agg(item_cnt_day=("item_cnt_day", "sum")).sort_values(by=["item_cnt_day"], ascending=False).reset_index(drop=True)
+            item_map = pd.Series(item_sales.index.values, index=item_sales["corrected_item_id"])
+            train["corrected_item_id"] = train["corrected_item_id"].map(item_map)
+            valid["corrected_item_id"] = valid["corrected_item_id"].map(item_map)
+
+
+            shop_sales = train.groupby(["corrected_shop_id"], as_index=False).agg(item_cnt_day=("item_cnt_day", "sum")).sort_values(by=["item_cnt_day"], ascending=False).reset_index(drop=True)
+            shop_map = pd.Series(shop_sales.index.values, index=shop_sales["corrected_shop_id"])
+            train["corrected_shop_id"] = train["corrected_shop_id"].map(shop_map)
+            valid["corrected_shop_id"] = valid["corrected_shop_id"].map(shop_map)
+
+            train = train.iloc[:len(train_indices)].copy()
+            train.index = train_indices
+
+
+        train = train[train['date_block_num'] < val_month]
         model = model_class(**model_params)
         model.fit(train[features], y.loc[train.index])
 
@@ -63,16 +94,17 @@ def validation_chema(df: pd.DataFrame, y: pd.DataFrame, model_class: ModelProtoc
 
         prediction = model.predict(valid[features])
         valid['item_cnt_day'] = prediction
+        valid['date'] = df.loc[df.index[df['date_block_num'] == val_month]]['date']
         if window_size != -1:
-            valid['true_ans'] = y.loc[df.index[df['date_block_num'] == month + window_size]].values
+            valid['true_ans'] = y.loc[df.index[df['date_block_num'] == val_month]].values
         else:
-            valid['true_ans'] = y.loc[df.index[df['date_block_num'] == month + 1]].values
+            valid['true_ans'] = y.loc[df.index[df['date_block_num'] == val_month]].values
         #results = pd.concat([results, valid[['date_block_num', 'date', 'corrected_shop_id', 'corrected_item_id', 'item_cnt_day', 'true_ans']]], ignore_index=True)
         results.append(valid[['date_block_num', 'date', 'corrected_shop_id', 'corrected_item_id', 'item_cnt_day', 'true_ans']])
     return pd.concat(results, ignore_index=True), pd.DataFrame(feature_importances_list)
 
 
-def log_validation(df: pd.DataFrame, y:pd.DataFrame, model_class: ModelProtocol, features: list[str], save_path: Path, model_params: dict | None = None, model_name: str | None = None, start: int = 0, window_size: int = -1, importance: bool = False):
+def log_validation(df: pd.DataFrame, y:pd.DataFrame, model_class: ModelProtocol, features: list[str], save_path: Path, model_params: dict | None = None, model_name: str | None = None, start: int = 0, window_size: int = -1, importance: bool = False, encode: bool=False):
     if model_name is None:
         model_name = model_class.__name__
 
@@ -87,7 +119,7 @@ def log_validation(df: pd.DataFrame, y:pd.DataFrame, model_class: ModelProtocol,
 
         mlflow.log_params(model_params)
 
-        results, importance  = validation_chema(df=df, y=y, model_class=model_class, features=features, model_params=model_params, start=start, window_size=window_size, importance=importance)
+        results, importance  = validation_chema(df=df, y=y, model_class=model_class, features=features, model_params=model_params, start=start, window_size=window_size, importance=importance, encode=encode)
 
         #y_true = results["true_ans"].astype(float)
         #y_pred = results["item_cnt_day"].astype(float)

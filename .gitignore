@@ -87,3 +87,9 @@ target/
 
 # Mypy cache
 .mypy_cache/
+
+# Mlflow cached models code
+data/models/validation/
+
+# Processed datasets
+data/processed/
